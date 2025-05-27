@@ -1,5 +1,6 @@
 # 初始化数据处理器
 from src.compatibility import CompatibilityData
+from src.calculator import UmaCalculator
 import time
 
 
@@ -62,5 +63,53 @@ def test_compatibility_calculator():
     print(f"\n总用时: {total_time:.2f} 秒")
 
 
+def test_five_uma_calculator():
+    print("\n开始测试五马相性计算器...")
+    print("-" * 50)
+    
+    # 初始化数据处理器和计算器
+    data = CompatibilityData("data/相性数据表.csv")
+    calculator = UmaCalculator(data)
+    
+    # 测试用例1：使用一些已知的马娘组合
+    test_case1 = {
+        "parent": "特别周",
+        "grandparent1": "无声铃鹿",
+        "grandparent2": "草上飞",
+        "chromo1": "神鹰",
+        "chromo2": "小栗帽"
+    }
+    
+    # 测试用例2：使用另一组马娘
+    test_case2 = {
+        "parent": "目白麦昆",
+        "grandparent1": "东海帝王",
+        "grandparent2": "米浴",
+        "chromo1": "好歌剧",
+        "chromo2": "成田白仁"
+    }
+    
+    # 测试计算总分
+    print("测试用例1 - 计算总分:")
+    total_score1 = calculator.calculate_five_uma_score(**test_case1)
+    print(f"总分: {total_score1}")
+    
+    print("\n测试用例2 - 计算总分:")
+    total_score2 = calculator.calculate_five_uma_score(**test_case2)
+    print(f"总分: {total_score2}")
+    
+    # 测试获取详细分数
+    print("\n测试用例1 - 详细分数:")
+    detailed_scores1 = calculator.get_detailed_scores(**test_case1)
+    for combination, score in detailed_scores1.items():
+        print(f"{combination}: {score}")
+    
+    print("\n测试用例2 - 详细分数:")
+    detailed_scores2 = calculator.get_detailed_scores(**test_case2)
+    for combination, score in detailed_scores2.items():
+        print(f"{combination}: {score}")
+
+
 if __name__ == "__main__":
-    test_compatibility_calculator()
+    # test_compatibility_calculator()
+    test_five_uma_calculator()
