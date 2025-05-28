@@ -20,9 +20,9 @@ class FiveHorsesCalculator:
         self.calculator = CompatibilityCalculator(compatibility_data)
         self.all_umas = list(compatibility_data.get_all_umas())
         
-    def calculate_best_combination(self, parent: str, verbose: bool = True) -> Tuple[Dict, int]:
+    def calculate_best_combination(self, parent: str, verbose: bool = True, num_processes: int = None) -> Tuple[Dict, int]:
         """
-        计算给定parent下的最优五马组合
+        计算给定parent下的最优五马组合（多进程优化版本）
         
         映射关系：
         - parent -> target
@@ -34,6 +34,7 @@ class FiveHorsesCalculator:
         Args:
             parent: 指定的父辈马娘
             verbose: 是否显示详细进度信息
+            num_processes: 进程数，默认为CPU核心数
             
         Returns:
             最优组合字典和最大相性点数的元组
@@ -48,54 +49,53 @@ class FiveHorsesCalculator:
             raise ValueError(f"可用马娘数量不足，需要至少4只其他马娘，当前只有{len(other_umas)}只")
         
         # 使用permutations生成有序的四马组合
-        total_combinations = len(list(permutations(other_umas, 4)))
+        all_combinations = list(permutations(other_umas, 4))
+        total_combinations = len(all_combinations)
         
         if verbose:
             print(f"正在为马娘 '{parent}' 计算最优五马组合...")
             print(f"总共需要计算 {total_combinations} 种组合")
+            print(f"使用多进程加速（进程数: {num_processes or multiprocessing.cpu_count()}）")
         
-        best_score = -1
-        best_combination = {}
+        if num_processes is None:
+            num_processes = multiprocessing.cpu_count()
         
-        # 使用tqdm显示进度
-        progress_bar = tqdm(permutations(other_umas, 4), 
-                          total=total_combinations, 
-                          desc="计算最优组合",
-                          disable=not verbose)
+        # 将组合分块
+        chunk_size = math.ceil(len(all_combinations) / num_processes)
+        chunks = [all_combinations[i:i + chunk_size] for i in range(0, len(all_combinations), chunk_size)]
         
-        for four_horses in progress_bar:
-            grandparent1, grandparent2, chromo1, chromo2 = four_horses
+        # 准备兼容数据
+        compatibility_cache = {
+            'pair': self.compatibility_data.pair_compatibility,
+            'triple': self.compatibility_data.triple_compatibility,
+            'all_umas': self.compatibility_data.all_umas
+        }
+        
+        # 使用进程池处理
+        with Pool(processes=num_processes) as pool:
+            # 准备任务数据
+            chunk_data = [(chunk, parent, compatibility_cache) for chunk in chunks]
             
-            # 根据映射关系调用calculate_compatibility_score
-            score = self.calculator.calculate_compatibility_score(
-                target=parent,
-                parent1=grandparent1,
-                parent2=grandparent2,
-                grandparent1=chromo1,
-                grandparent2=chromo2,
-                grandparent3=chromo2,
-                grandparent4=grandparent1,
-                verbose=False  # 批量计算时关闭详细输出
-            )
-            
-            if score > best_score:
-                best_score = score
-                best_combination = {
-                    'parent': parent,
-                    'grandparent1': grandparent1,
-                    'grandparent2': grandparent2,
-                    'chromo1': chromo1,
-                    'chromo2': chromo2
-                }
+            # 使用tqdm显示进度
+            with tqdm(total=total_combinations, desc="计算最优组合", disable=not verbose) as pbar:
+                # 使用imap_unordered实时获取结果
+                best_score = -1
+                best_combination = {}
                 
-                if verbose:
-                    progress_bar.set_postfix({'当前最高分': best_score})
+                for chunk_result in pool.imap_unordered(process_best_combination_chunk, chunk_data):
+                    # 更新最优结果
+                    if chunk_result['best_score'] > best_score:
+                        best_score = chunk_result['best_score']
+                        best_combination = chunk_result['best_combination']
+                    
+                    # 更新进度条
+                    pbar.update(len(chunk_result['chunk']))
+                    
+                    if verbose:
+                        pbar.set_postfix({'当前最高分': best_score})
         
-        if verbose:
-            progress_bar.close()
-            
         return best_combination, best_score
-    
+
     def display_result(self, combination: Dict, score: int):
         """
         显示计算结果
@@ -224,7 +224,7 @@ class FiveHorsesCalculator:
             # 使用tqdm显示进度
             with tqdm(total=total_combinations, desc=f"计算前{top_n}组合", disable=not verbose) as pbar:
                 # 使用imap_unordered实时获取结果
-                for chunk_result in pool.imap_unordered(process_five_horses_chunk, chunk_data):
+                for chunk_result in pool.imap_unordered(process_top_n_combinations_chunk, chunk_data):
                     # 处理这个chunk的结果
                     for combination, score in chunk_result['top_n']:
                         if len(min_heap) < top_n:
@@ -249,8 +249,78 @@ class FiveHorsesCalculator:
         
         return results
 
-def process_five_horses_chunk(chunk_data):
-    """处理五马组合数据块的函数，独立维护最优结果"""
+def process_best_combination_chunk(chunk_data):
+    """
+    处理单个数据块并返回该块的最优五马组合（用于calculate_best_combination）
+    
+    Args:
+        chunk_data: 包含(数据块, parent, 兼容数据缓存)的元组
+        
+    Returns:
+        包含最优组合、分数和原始数据块的字典
+    """
+    chunk, parent, compatibility_data_cache = chunk_data
+    
+    # 重建CompatibilityCalculator（在子进程中）
+    from .compatibility import CompatibilityData
+    from .calculator import CompatibilityCalculator
+    
+    # 创建临时的compatibility data对象
+    temp_data = CompatibilityData.__new__(CompatibilityData)
+    temp_data.pair_compatibility = compatibility_data_cache['pair']
+    temp_data.triple_compatibility = compatibility_data_cache['triple']
+    temp_data.all_umas = compatibility_data_cache['all_umas']
+    
+    calculator = CompatibilityCalculator(temp_data)
+    
+    # 在子进程中维护最优结果
+    best_score = -1
+    best_combination = {}
+    
+    # 处理这个chunk的所有组合
+    for four_horses in chunk:
+        grandparent1, grandparent2, chromo1, chromo2 = four_horses
+        
+        # 计算相性分数
+        score = calculator.calculate_compatibility_score(
+            target=parent,
+            parent1=grandparent1,
+            parent2=grandparent2,
+            grandparent1=chromo1,
+            grandparent2=chromo2,
+            grandparent3=chromo2,
+            grandparent4=grandparent1,
+            verbose=False
+        )
+        
+        # 更新最优组合
+        if score > best_score:
+            best_score = score
+            best_combination = {
+                'parent': parent,
+                'grandparent1': grandparent1,
+                'grandparent2': grandparent2,
+                'chromo1': chromo1,
+                'chromo2': chromo2
+            }
+    
+    # 返回这个chunk的最优结果和原始chunk用于进度更新
+    return {
+        'best_combination': best_combination,
+        'best_score': best_score,
+        'chunk': chunk
+    }
+
+def process_top_n_combinations_chunk(chunk_data):
+    """
+    处理单个数据块并返回该块的前N优五马组合（用于get_top_combinations）
+    
+    Args:
+        chunk_data: 包含(数据块, parent, 兼容数据缓存, top_n)的元组
+        
+    Returns:
+        包含最优组合、前N优结果和原始数据块的字典
+    """
     chunk, parent, compatibility_data_cache, top_n = chunk_data
     
     # 重建CompatibilityCalculator（在子进程中）
@@ -318,30 +388,5 @@ def process_five_horses_chunk(chunk_data):
     return {
         'best': (best_combination, best_score),
         'top_n': top_results,
-        'chunk': chunk  # 添加原始chunk用于进度更新
+        'chunk': chunk
     }
-
-def merge_chunk_results(chunk_results, top_n):
-    """合并多个chunk的结果"""
-    # 合并所有chunk的最优结果
-    best_score = -1
-    best_combination = {}
-    
-    # 合并所有chunk的前N优结果
-    all_top_results = []
-    
-    for result in chunk_results:
-        # 更新最优结果
-        chunk_best_combo, chunk_best_score = result['best']
-        if chunk_best_score > best_score:
-            best_score = chunk_best_score
-            best_combination = chunk_best_combo
-        
-        # 合并前N优结果
-        all_top_results.extend(result['top_n'])
-    
-    # 对所有结果重新排序并取前N个
-    all_top_results.sort(key=lambda x: x[1], reverse=True)
-    top_n_results = all_top_results[:top_n]
-    
-    return best_combination, best_score, top_n_results
