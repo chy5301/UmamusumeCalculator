@@ -218,10 +218,16 @@ class CompatibilityData:
     
     def get_pair_compatibility(self, uma1: str, uma2: str) -> int:
         """获取两个马娘之间的相性分数"""
+        # 检查是否有重复的马娘
+        if uma1 == uma2:
+            return 0
         return self.pair_compatibility.get((uma1, uma2), 0)
     
     def get_triple_compatibility(self, uma1: str, uma2: str, uma3: str) -> int:
         """获取三个马娘之间的相性分数"""
+        # 检查是否有重复的马娘
+        if len({uma1, uma2, uma3}) < 3:  # 如果有重复，集合长度会小于3
+            return 0
         return self.triple_compatibility.get((uma1, uma2, uma3), 0)
     
     def get_uma_groups(self, uma_name: str) -> List[Dict]:
