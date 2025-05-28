@@ -180,14 +180,21 @@ class CompatibilityData:
         triple_cache = {f"{k[0]},{k[1]},{k[2]}": v for k, v in tqdm(self.triple_compatibility.items(), desc="保存三三相性")}
         with open(os.path.join(self.cache_dir, "triple_compatibility.json"), "w", encoding="utf-8") as f:
             json.dump(triple_cache, f, ensure_ascii=False, indent=2)
+
+        # 保存马娘列表
+        uma_list_cache = list(self.all_umas)
+        with open(os.path.join(self.cache_dir, "uma_list.json"), "w", encoding="utf-8") as f:
+            json.dump(uma_list_cache, f, ensure_ascii=False, indent=2)
+            
         print("缓存保存完成！")
     
     def _load_from_cache(self) -> bool:
         """从缓存加载数据"""
         pair_cache_path = os.path.join(self.cache_dir, "pair_compatibility.json")
         triple_cache_path = os.path.join(self.cache_dir, "triple_compatibility.json")
+        uma_list_path = os.path.join(self.cache_dir, "uma_list.json")
         
-        if not (os.path.exists(pair_cache_path) and os.path.exists(triple_cache_path)):
+        if not (os.path.exists(pair_cache_path) and os.path.exists(triple_cache_path) and os.path.exists(uma_list_path)):
             return False
         
         print("正在从缓存加载数据...")
@@ -200,6 +207,11 @@ class CompatibilityData:
         with open(triple_cache_path, "r", encoding="utf-8") as f:
             triple_cache = json.load(f)
         self.triple_compatibility = {tuple(k.split(",")): v for k, v in tqdm(triple_cache.items(), desc="加载三三相性")}
+        
+        # 加载马娘列表
+        with open(uma_list_path, "r", encoding="utf-8") as f:
+            uma_list = json.load(f)
+        self.all_umas = set(uma_list)
         
         print("缓存加载完成！")
         return True
@@ -250,4 +262,13 @@ class CompatibilityData:
                         compatibility[other_uma] = 0
                     compatibility[other_uma] += score
                     
-        return compatibility 
+        return compatibility
+
+    def get_all_umas(self) -> Set[str]:
+        """
+        获取所有马娘的列表
+        
+        Returns:
+            包含所有马娘名称的集合
+        """
+        return self.all_umas 

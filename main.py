@@ -1,18 +1,18 @@
 # 初始化数据处理器
 from src.compatibility import CompatibilityData
-from src.calculator import UmaCalculator
+from src.calculator import CompatibilityCalculator
 import time
 
 
 def test_compatibility_calculator():
-    print("开始测试相性计算器...")
+    print("开始测试相性数据处理器...")
 
     # 记录开始时间
     start_time = time.time()
 
     # 初始化数据处理器
-    print("正在初始化数据处理器...")
-    data = CompatibilityData("data/相性数据表.csv", num_processes=4)
+    print("正在初始化相性数据处理器...")
+    data = CompatibilityData("data/相性数据表.csv")
 
     # 测试一些已知的马娘组合
     test_pairs = [
@@ -43,7 +43,7 @@ def test_compatibility_calculator():
     # 测试缓存功能
     print("\n测试缓存功能:")
     print("-" * 50)
-    print("重新初始化数据处理器（应该从缓存加载）...")
+    print("重新初始化相性数据处理器（应该从缓存加载）...")
     cache_start_time = time.time()
     data2 = CompatibilityData("data/相性数据表.csv")
     cache_time = time.time() - cache_start_time
@@ -63,53 +63,111 @@ def test_compatibility_calculator():
     print(f"\n总用时: {total_time:.2f} 秒")
 
 
-def test_five_uma_calculator():
-    print("\n开始测试五马相性计算器...")
-    print("-" * 50)
+def test_compatibility_calculator_advanced():
+    """测试相性计算器"""
+    print("开始测试相性计算器...")
+    print("=" * 60)
     
     # 初始化数据处理器和计算器
+    print("正在初始化数据处理器...")
     data = CompatibilityData("data/相性数据表.csv")
-    calculator = UmaCalculator(data)
+    calculator = CompatibilityCalculator(data)
     
-    # 测试用例1：使用一些已知的马娘组合
-    test_case1 = {
-        "parent": "特别周",
-        "grandparent1": "无声铃鹿",
-        "grandparent2": "草上飞",
-        "chromo1": "神鹰",
-        "chromo2": "小栗帽"
-    }
+    # 测试案例1：经典组合
+    print("\n测试案例1：经典组合")
+    print("-" * 40)
+    test_horses_1 = [
+        "特别周",      # target
+        "无声铃鹿",    # parent1
+        "草上飞",      # parent2
+        "神鹰",        # grandparent1
+        "小栗帽",      # grandparent2
+        "目白麦昆",    # grandparent3
+        "东海帝王"     # grandparent4
+    ]
     
-    # 测试用例2：使用另一组马娘
-    test_case2 = {
-        "parent": "目白麦昆",
-        "grandparent1": "东海帝王",
-        "grandparent2": "米浴",
-        "chromo1": "好歌剧",
-        "chromo2": "成田白仁"
-    }
+    if calculator.validate_horses(test_horses_1):
+        print("所有马娘都有效，开始计算...")
+        total_score_1 = calculator.calculate_compatibility_score_simple(test_horses_1)
+        print(f"案例1总分: {total_score_1}")
+    else:
+        print("存在无效的马娘，跳过计算")
     
-    # 测试计算总分
-    print("测试用例1 - 计算总分:")
-    total_score1 = calculator.calculate_five_uma_score(**test_case1)
-    print(f"总分: {total_score1}")
+    # 测试案例2：另一个组合
+    print("\n测试案例2：另一个组合")
+    print("-" * 40)
+    test_horses_2 = [
+        "丸善斯基",    # target
+        "鲁道夫象征",  # parent1
+        "目白麦昆",    # parent2
+        "稻荷一",      # grandparent1
+        "小栗帽",      # grandparent2
+        "东海帝王",    # grandparent3
+        "伏特加"       # grandparent4
+    ]
     
-    print("\n测试用例2 - 计算总分:")
-    total_score2 = calculator.calculate_five_uma_score(**test_case2)
-    print(f"总分: {total_score2}")
+    if calculator.validate_horses(test_horses_2):
+        print("所有马娘都有效，开始计算...")
+        total_score_2 = calculator.calculate_compatibility_score_simple(test_horses_2)
+        print(f"案例2总分: {total_score_2}")
+    else:
+        print("存在无效的马娘，跳过计算")
     
-    # 测试获取详细分数
-    print("\n测试用例1 - 详细分数:")
-    detailed_scores1 = calculator.get_detailed_scores(**test_case1)
-    for combination, score in detailed_scores1.items():
-        print(f"{combination}: {score}")
+    # 详细分解测试
+    print("\n详细分解测试（使用案例1）:")
+    print("-" * 40)
+    if calculator.validate_horses(test_horses_1):
+        breakdown = calculator.get_detailed_breakdown(*test_horses_1)
+        
+        print("两两相性分数:")
+        for pair, score in breakdown['pair_scores'].items():
+            print(f"  {pair}: {score}")
+        
+        print("\n三三相性分数:")
+        for triple, score in breakdown['triple_scores'].items():
+            print(f"  {triple}: {score}")
+        
+        print(f"\n总相性点数: {breakdown['total_score']}")
     
-    print("\n测试用例2 - 详细分数:")
-    detailed_scores2 = calculator.get_detailed_scores(**test_case2)
-    for combination, score in detailed_scores2.items():
-        print(f"{combination}: {score}")
+    # 测试无效马娘
+    print("\n测试无效马娘处理:")
+    print("-" * 40)
+    invalid_horses = [
+        "特别周",
+        "不存在的马娘1",
+        "草上飞",
+        "不存在的马娘2",
+        "小栗帽",
+        "目白麦昆",
+        "东海帝王"
+    ]
+    
+    print("测试包含无效马娘的列表...")
+    if not calculator.validate_horses(invalid_horses):
+        print("正确检测到无效马娘")
+    
+    print("\n相性计算器测试完成！")
 
 
 if __name__ == "__main__":
-    # test_compatibility_calculator()
-    test_five_uma_calculator()
+    # 可以选择运行哪个测试
+    print("选择要运行的测试:")
+    print("1. 相性数据处理器测试")
+    print("2. 相性计算器测试")
+    print("3. 运行所有测试")
+    
+    choice = input("请输入选择 (1/2/3): ").strip()
+    
+    if choice == "1":
+        test_compatibility_calculator()
+    elif choice == "2":
+        test_compatibility_calculator_advanced()
+    elif choice == "3":
+        test_compatibility_calculator()
+        print("\n" + "="*80 + "\n")
+        test_compatibility_calculator_advanced()
+    else:
+        print("无效选择，运行所有测试...")
+        test_compatibility_calculator()
+        print("\n" + "="*80 + "\n")
+        test_compatibility_calculator_advanced()
