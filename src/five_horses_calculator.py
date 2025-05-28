@@ -1,5 +1,5 @@
 from typing import List, Tuple, Dict, Set
-from itertools import combinations
+from itertools import permutations
 from tqdm import tqdm
 from .calculator import CompatibilityCalculator
 from .compatibility import CompatibilityData
@@ -47,7 +47,8 @@ class FiveHorsesCalculator:
         if len(other_umas) < 4:
             raise ValueError(f"可用马娘数量不足，需要至少4只其他马娘，当前只有{len(other_umas)}只")
         
-        total_combinations = len(list(combinations(other_umas, 4)))
+        # 使用permutations生成有序的四马组合
+        total_combinations = len(list(permutations(other_umas, 4)))
         
         if verbose:
             print(f"正在为马娘 '{parent}' 计算最优五马组合...")
@@ -57,7 +58,7 @@ class FiveHorsesCalculator:
         best_combination = {}
         
         # 使用tqdm显示进度
-        progress_bar = tqdm(combinations(other_umas, 4), 
+        progress_bar = tqdm(permutations(other_umas, 4), 
                           total=total_combinations, 
                           desc="计算最优组合",
                           disable=not verbose)
@@ -187,7 +188,7 @@ class FiveHorsesCalculator:
         if len(other_umas) < 4:
             raise ValueError(f"可用马娘数量不足，需要至少4只其他马娘，当前只有{len(other_umas)}只")
         
-        total_combinations = len(list(combinations(other_umas, 4)))
+        total_combinations = len(list(permutations(other_umas, 4)))
         
         if verbose:
             print(f"正在为马娘 '{parent}' 计算前{top_n}个最优组合...")
@@ -198,7 +199,7 @@ class FiveHorsesCalculator:
             num_processes = multiprocessing.cpu_count()
         
         # 生成所有四马组合
-        all_combinations = list(combinations(other_umas, 4))
+        all_combinations = list(permutations(other_umas, 4))
         
         # 将组合分块
         chunk_size = math.ceil(len(all_combinations) / num_processes)
@@ -206,9 +207,9 @@ class FiveHorsesCalculator:
         
         # 准备兼容数据
         compatibility_cache = {
-            'pair': self.compatibility_data.pair_compatibility.copy(),  # 使用copy()确保数据独立性
-            'triple': self.compatibility_data.triple_compatibility.copy(),  # 使用copy()确保数据独立性
-            'all_umas': self.compatibility_data.all_umas.copy()  # 使用copy()确保数据独立性
+            'pair': self.compatibility_data.pair_compatibility,
+            'triple': self.compatibility_data.triple_compatibility,
+            'all_umas': self.compatibility_data.all_umas
         }
         
         # 使用最小堆维护前N个结果
@@ -228,11 +229,11 @@ class FiveHorsesCalculator:
                     for combination, score in chunk_result['top_n']:
                         if len(min_heap) < top_n:
                             # 堆未满，直接加入
-                            heapq.heappush(min_heap, (score, index, combination.copy()))  # 使用copy()确保数据独立性
+                            heapq.heappush(min_heap, (score, index, combination))
                             index += 1
                         elif score > min_heap[0][0]:
                             # 当前分数比堆中最小分数大，替换
-                            heapq.heapreplace(min_heap, (score, index, combination.copy()))  # 使用copy()确保数据独立性
+                            heapq.heapreplace(min_heap, (score, index, combination))
                             index += 1
                     
                     # 更新进度条 - 使用chunk的大小而不是结果数量
@@ -243,7 +244,7 @@ class FiveHorsesCalculator:
                         pbar.set_postfix({'第{}名分数'.format(top_n): min_heap[0][0] if len(min_heap) == top_n else '未满'})
         
         # 从最小堆中提取结果并按分数降序排列
-        results = [(combo.copy(), score) for score, _, combo in min_heap]  # 使用copy()确保数据独立性
+        results = [(combo, score) for score, _, combo in min_heap]
         results.sort(key=lambda x: x[1], reverse=True)
         
         return results
@@ -258,9 +259,9 @@ def process_five_horses_chunk(chunk_data):
     
     # 创建临时的compatibility data对象
     temp_data = CompatibilityData.__new__(CompatibilityData)
-    temp_data.pair_compatibility = compatibility_data_cache['pair'].copy()  # 使用copy()确保数据独立性
-    temp_data.triple_compatibility = compatibility_data_cache['triple'].copy()  # 使用copy()确保数据独立性
-    temp_data.all_umas = compatibility_data_cache['all_umas'].copy()  # 使用copy()确保数据独立性
+    temp_data.pair_compatibility = compatibility_data_cache['pair']
+    temp_data.triple_compatibility = compatibility_data_cache['triple']
+    temp_data.all_umas = compatibility_data_cache['all_umas']
     
     calculator = CompatibilityCalculator(temp_data)
     
@@ -299,18 +300,18 @@ def process_five_horses_chunk(chunk_data):
         # 更新最优组合
         if score > best_score:
             best_score = score
-            best_combination = combination.copy()  # 使用copy()确保数据独立性
+            best_combination = combination
         
         # 更新前N优结果
         if len(min_heap) < top_n:
-            heapq.heappush(min_heap, (score, index, combination.copy()))  # 使用copy()确保数据独立性
+            heapq.heappush(min_heap, (score, index, combination))
             index += 1
         elif score > min_heap[0][0]:
-            heapq.heapreplace(min_heap, (score, index, combination.copy()))  # 使用copy()确保数据独立性
+            heapq.heapreplace(min_heap, (score, index, combination))
             index += 1
     
     # 从最小堆中提取前N优结果
-    top_results = [(combo.copy(), score) for score, _, combo in min_heap]  # 使用copy()确保数据独立性
+    top_results = [(combo, score) for score, _, combo in min_heap]
     top_results.sort(key=lambda x: x[1], reverse=True)
     
     # 返回这个chunk的最优结果和前N优结果，以及原始chunk用于进度更新
