@@ -46,7 +46,7 @@ def get_uma_groups_internal(uma_name: str, uma_to_groups: Dict[str, Set[int]], d
     return groups
 
 class CompatibilityData:
-    def __init__(self, csv_path: str, cache_dir: str = "data/cache", num_processes: int = None):
+    def __init__(self, csv_path: str = "data/相性数据表.csv", cache_dir: str = "data/cache", num_processes: int = None):
         """
         初始化相性数据处理器
         
