@@ -67,85 +67,44 @@ def test_compatibility_calculator_advanced():
     """测试相性计算器"""
     print("开始测试相性计算器...")
     print("=" * 60)
-    
+
     # 初始化数据处理器和计算器
     print("正在初始化数据处理器...")
     data = CompatibilityData("data/相性数据表.csv")
     calculator = CompatibilityCalculator(data)
-    
+
     # 测试案例1：经典组合
     print("\n测试案例1：经典组合")
     print("-" * 40)
     test_horses_1 = [
-        "特别周",      # target
-        "无声铃鹿",    # parent1
-        "草上飞",      # parent2
-        "神鹰",        # grandparent1
-        "小栗帽",      # grandparent2
-        "目白麦昆",    # grandparent3
-        "东海帝王"     # grandparent4
+        "特别周",  # target
+        "无声铃鹿",  # parent1
+        "草上飞",  # parent2
+        "神鹰",  # grandparent1
+        "小栗帽",  # grandparent2
+        "目白麦昆",  # grandparent3
+        "东海帝王",  # grandparent4
     ]
-    
-    if calculator.validate_horses(test_horses_1):
-        print("所有马娘都有效，开始计算...")
-        total_score_1 = calculator.calculate_compatibility_score_simple(test_horses_1)
-        print(f"案例1总分: {total_score_1}")
-    else:
-        print("存在无效的马娘，跳过计算")
-    
+
+    total_score_1 = calculator.calculate_compatibility_score_simple(test_horses_1)
+    print(f"案例1总分: {total_score_1}")
+
     # 测试案例2：另一个组合
     print("\n测试案例2：另一个组合")
     print("-" * 40)
     test_horses_2 = [
-        "丸善斯基",    # target
+        "丸善斯基",  # target
         "鲁道夫象征",  # parent1
-        "目白麦昆",    # parent2
-        "稻荷一",      # grandparent1
-        "小栗帽",      # grandparent2
-        "东海帝王",    # grandparent3
-        "伏特加"       # grandparent4
+        "目白麦昆",  # parent2
+        "稻荷一",  # grandparent1
+        "小栗帽",  # grandparent2
+        "东海帝王",  # grandparent3
+        "伏特加",  # grandparent4
     ]
-    
-    if calculator.validate_horses(test_horses_2):
-        print("所有马娘都有效，开始计算...")
-        total_score_2 = calculator.calculate_compatibility_score_simple(test_horses_2)
-        print(f"案例2总分: {total_score_2}")
-    else:
-        print("存在无效的马娘，跳过计算")
-    
-    # 详细分解测试
-    print("\n详细分解测试（使用案例1）:")
-    print("-" * 40)
-    if calculator.validate_horses(test_horses_1):
-        breakdown = calculator.get_detailed_breakdown(*test_horses_1)
-        
-        print("两两相性分数:")
-        for pair, score in breakdown['pair_scores'].items():
-            print(f"  {pair}: {score}")
-        
-        print("\n三三相性分数:")
-        for triple, score in breakdown['triple_scores'].items():
-            print(f"  {triple}: {score}")
-        
-        print(f"\n总相性点数: {breakdown['total_score']}")
-    
-    # 测试无效马娘
-    print("\n测试无效马娘处理:")
-    print("-" * 40)
-    invalid_horses = [
-        "特别周",
-        "不存在的马娘1",
-        "草上飞",
-        "不存在的马娘2",
-        "小栗帽",
-        "目白麦昆",
-        "东海帝王"
-    ]
-    
-    print("测试包含无效马娘的列表...")
-    if not calculator.validate_horses(invalid_horses):
-        print("正确检测到无效马娘")
-    
+
+    total_score_2 = calculator.calculate_compatibility_score_simple(test_horses_2)
+    print(f"案例2总分: {total_score_2}")
+
     print("\n相性计算器测试完成！")
 
 
@@ -155,19 +114,19 @@ if __name__ == "__main__":
     print("1. 相性数据处理器测试")
     print("2. 相性计算器测试")
     print("3. 运行所有测试")
-    
+
     choice = input("请输入选择 (1/2/3): ").strip()
-    
+
     if choice == "1":
         test_compatibility_calculator()
     elif choice == "2":
         test_compatibility_calculator_advanced()
     elif choice == "3":
         test_compatibility_calculator()
-        print("\n" + "="*80 + "\n")
+        print("\n" + "=" * 80 + "\n")
         test_compatibility_calculator_advanced()
     else:
         print("无效选择，运行所有测试...")
         test_compatibility_calculator()
-        print("\n" + "="*80 + "\n")
+        print("\n" + "=" * 80 + "\n")
         test_compatibility_calculator_advanced()
